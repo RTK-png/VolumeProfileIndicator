@@ -1,0 +1,145 @@
+#region Using declarations
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Xml.Serialization;
+using NinjaTrader.Cbi;
+using NinjaTrader.Gui;
+using NinjaTrader.Gui.Chart;
+using NinjaTrader.Gui.SuperDom;
+using NinjaTrader.Gui.Tools;
+using NinjaTrader.Data;
+using NinjaTrader.NinjaScript;
+using NinjaTrader.Core.FloatingPoint;
+using NinjaTrader.NinjaScript.DrawingTools;
+#endregion
+
+//This namespace holds Indicators in this folder and is required. Do not change it. 
+namespace NinjaTrader.NinjaScript.Indicators
+{
+	public class MyCustomIndicator : Indicator
+	{
+		protected override void OnStateChange()
+		{
+			if (State == State.SetDefaults)
+			{
+				Description									= @"My First Indicator, im making a basic Volume Profile as a project to get better in C#";
+				Name										= "MyFirstIndicatorVP";
+				Calculate									= Calculate.OnEachTick;
+				IsOverlay									= true;
+				DisplayInDataBox							= true;
+				DrawOnPricePanel							= true;
+				DrawHorizontalGridLines						= true;
+				DrawVerticalGridLines						= true;
+				PaintPriceMarkers							= true;
+				ScaleJustification							= NinjaTrader.Gui.Chart.ScaleJustification.Right;
+				//Disable this property if your indicator requires custom values that cumulate with each new market data event. 
+				//See Help Guide for additional information.
+				IsSuspendedWhileInactive					= true;
+				Lookback					= 100;
+				Rows					= 100;
+				ValueArea					= 70;
+			}
+			else if (State == State.Configure)
+			{
+			}
+		}
+
+		protected override void OnBarUpdate()
+		{
+			Print(
+			"Bar: " + CurrentBar +
+			" Open: " + Open[0] +
+			" High: : " + High[0] +
+			" Low: " + Low[0] +
+			" Close: " + Close[0] +
+			" Volume: " + Volume[0]
+			);
+		}
+
+		#region Properties
+		[NinjaScriptProperty]
+		[Range(10, int.MaxValue)]
+		[Display(Name="Lookback", Description="Numbers of bars used for the Volume profile", Order=1, GroupName="Parameters")]
+		public int Lookback
+		{ get; set; }
+
+		[NinjaScriptProperty]
+		[Range(100, int.MaxValue)]
+		[Display(Name="Rows", Description="How many rows the Volume Profile has ", Order=2, GroupName="Parameters")]
+		public int Rows
+		{ get; set; }
+
+		[NinjaScriptProperty]
+		[Range(1, 100)]
+		[Display(Name="ValueArea", Description="Percentage of Volume used for the Value Area", Order=3, GroupName="Parameters")]
+		public int ValueArea
+		{ get; set; }
+		#endregion
+
+	}
+}
+
+#region NinjaScript generated code. Neither change nor remove.
+
+namespace NinjaTrader.NinjaScript.Indicators
+{
+	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
+	{
+		private MyCustomIndicator[] cacheMyCustomIndicator;
+		public MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		{
+			return MyCustomIndicator(Input, lookback, rows, valueArea);
+		}
+
+		public MyCustomIndicator MyCustomIndicator(ISeries<double> input, int lookback, int rows, int valueArea)
+		{
+			if (cacheMyCustomIndicator != null)
+				for (int idx = 0; idx < cacheMyCustomIndicator.Length; idx++)
+					if (cacheMyCustomIndicator[idx] != null && cacheMyCustomIndicator[idx].Lookback == lookback && cacheMyCustomIndicator[idx].Rows == rows && cacheMyCustomIndicator[idx].ValueArea == valueArea && cacheMyCustomIndicator[idx].EqualsInput(input))
+						return cacheMyCustomIndicator[idx];
+			return CacheIndicator<MyCustomIndicator>(new MyCustomIndicator(){ Lookback = lookback, Rows = rows, ValueArea = valueArea }, input, ref cacheMyCustomIndicator);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
+{
+	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
+	{
+		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		{
+			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea);
+		}
+
+		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea)
+		{
+			return indicator.MyCustomIndicator(input, lookback, rows, valueArea);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.Strategies
+{
+	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
+	{
+		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		{
+			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea);
+		}
+
+		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea)
+		{
+			return indicator.MyCustomIndicator(input, lookback, rows, valueArea);
+		}
+	}
+}
+
+#endregion
