@@ -64,15 +64,18 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 		protected override void OnBarUpdate()
 		{
-			Print("Array length: " + volumeProfile.Length);
-			if (CurrentBar <99){
+			if (CurrentBar <Lookback - 1){
 			return;
+			}
+			
+			for  (int i = 0; i < Rows; i++){
+				volumeProfile[i] = 0;
 			}
 			
 			double highest = High[0];
 			double lowest = Low[0];
 			
-			for (int i = 0; i < 100; i++)
+			for (int i = 0; i < Lookback; i++)
 			{
 				if(highest < High[i]){
 					highest = High[i];
@@ -92,10 +95,22 @@ namespace NinjaTrader.NinjaScript.Indicators
 			Print("Highest: "+ highest);
 			Print("Lowest: "+ lowest);
 			
-			for(int i = 0; i < 100; i++){
+			for(int i = 0; i < Lookback; i++){
+				
 				double calculate = (Close[i] - lowest) / rowSize;
 				int row = (int)calculate;
-				Print("Close: " + Close[i] + " | Row: " + row);
+				
+				if (row < 0){
+        		row = 0;
+    			}
+			    else if (row >= volumeProfile.Length)
+			    {
+			        row = volumeProfile.Length - 1;
+			    }
+				
+				volumeProfile[row] += Volume[i];
+				
+				Print("Close: " + Close[i] + " | Row: " + row + " | Calculate: " + calculate);
 			}
 		}
 
