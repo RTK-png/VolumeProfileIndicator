@@ -28,6 +28,14 @@ namespace NinjaTrader.NinjaScript.Indicators
 	{
 		// Class Level Arrays to not load it each time another bar appears
 		private double[] volumeProfile;
+		int pocRow;
+		double pocPrice;
+		double maxVolume;
+		double totalVolume;
+		double targetVolume;
+		double accumulatedVolume;
+		int upperRow;
+		int lowerRow;
 		
 		protected override void OnStateChange()
 		{
@@ -110,9 +118,51 @@ namespace NinjaTrader.NinjaScript.Indicators
 				
 				volumeProfile[row] += Volume[i];
 				
-				Print("Close: " + Close[i] + " | Row: " + row + " | Calculate: " + calculate);
+			}
+			for(int i = 0; i < Rows; i++){
+				if(volumeProfile[i] > 0){
+					Print("Row: " + i + " | Volume: " + volumeProfile[i]);
+				}
+			}
+			
+			for(int i = 0; i < Rows; i++){
+				if(volumeProfile[i] > maxVolume){
+					
+					pocRow = i;
+					maxVolume = volumeProfile[i];
+				}
+			}
+			pocPrice = lowest + (pocRow * rowSize);
+			upperRow = pocRow;
+			lowerRow = pocRow;
+			
+			
+			Print("POC Row: " +pocRow + " | POC Price: " + pocPrice + " | Most Volume: " + maxVolume);
+			
+			for (int i = 0; i < Rows; i++){
+				totalVolume += volumeProfile[i];
+			}
+			
+			accumulatedVolume = maxVolume;
+			targetVolume = totalVolume / 100 * ValueArea;
+			
+			while(accumulatedVolume < targetVolume){
+				
+			int above = upperRow + 1;
+			int below = lowerRow -1;
+			
+			if(volumeProfile[above] > volumeProfile[below] ){
+				upperRow++;
+				accumulatedVolume += volumeProfile[upperRow];
+			}
+			else{
+				lowerRow--;
+				accumulatedVolume += volumeProfile[lowerRow];
+			}
 			}
 		}
+		
+		
 
 		#region Properties
 		[NinjaScriptProperty]
