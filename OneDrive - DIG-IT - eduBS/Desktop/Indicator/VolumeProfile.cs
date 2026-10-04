@@ -19,6 +19,8 @@ using NinjaTrader.Data;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.DrawingTools;
+using SharpDX;
+using SharpDX.Direct2D1; 
 #endregion
 
 //This namespace holds Indicators in this folder and is required. Do not change it. 
@@ -26,16 +28,20 @@ namespace NinjaTrader.NinjaScript.Indicators
 {
 	public class MyCustomIndicator : Indicator
 	{
-		// Class Level Arrays to not load it each time another bar appears
 		private double[] volumeProfile;
 		int pocRow;
 		double pocPrice;
+		double vahPrice;
+		double valPrice;
 		double maxVolume;
 		double totalVolume;
 		double targetVolume;
 		double accumulatedVolume;
+		double lowest;
+		double rowSize;
 		int upperRow;
 		int lowerRow;
+		int profileBarIndex;
 		
 		protected override void OnStateChange()
 		{
@@ -57,6 +63,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 				Lookback					= 100;
 				Rows					= 100;
 				ValueArea					= 70;
+				ProfileWidth = 500;
 			}
 			
 			// Loading the Data before the Calculation
@@ -72,6 +79,11 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 		protected override void OnBarUpdate()
 		{
+			profileBarIndex = CurrentBar - Lookback;
+			maxVolume = 0;
+			totalVolume = 0;
+			pocRow = 0;
+			
 			if (CurrentBar <Lookback - 1){
 			return;
 			}
@@ -81,7 +93,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 			}
 			
 			double highest = High[0];
-			double lowest = Low[0];
+			lowest = Low[0];
 			
 			for (int i = 0; i < Lookback; i++)
 			{
@@ -96,12 +108,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 			}
 			
 			double priceRange = highest - lowest;
-			double rowSize =  priceRange / Rows;
+			rowSize =  priceRange / Rows;
 			
-			Print ("Range: " + priceRange);
-			Print("Row Size: " + rowSize);
-			Print("Highest: "+ highest);
-			Print("Lowest: "+ lowest);
 			
 			for(int i = 0; i < Lookback; i++){
 				
@@ -132,12 +140,12 @@ namespace NinjaTrader.NinjaScript.Indicators
 					maxVolume = volumeProfile[i];
 				}
 			}
+			
 			pocPrice = lowest + (pocRow * rowSize);
 			upperRow = pocRow;
 			lowerRow = pocRow;
 			
 			
-			Print("POC Row: " +pocRow + " | POC Price: " + pocPrice + " | Most Volume: " + maxVolume);
 			
 			for (int i = 0; i < Rows; i++){
 				totalVolume += volumeProfile[i];
@@ -147,23 +155,81 @@ namespace NinjaTrader.NinjaScript.Indicators
 			targetVolume = totalVolume / 100 * ValueArea;
 			
 			while(accumulatedVolume < targetVolume){
-				
-			int above = upperRow + 1;
-			int below = lowerRow -1;
 			
-			if(volumeProfile[above] > volumeProfile[below] ){
-				upperRow++;
-				accumulatedVolume += volumeProfile[upperRow];
-			}
+			int above = upperRow + 1;
+			int below = lowerRow -1;	
+				
+			if(upperRow == Rows-1){
+					lowerRow--;
+					accumulatedVolume += volumeProfile[lowerRow];
+				}
+			else if(lowerRow == 0){
+					upperRow++;
+					accumulatedVolume += volumeProfile[upperRow];
+				}
 			else{
-				lowerRow--;
-				accumulatedVolume += volumeProfile[lowerRow];
+				if(volumeProfile[above] > volumeProfile[below]){
+					upperRow++;
+					accumulatedVolume += volumeProfile[upperRow];
+					}
+				else{
+					lowerRow--;
+					accumulatedVolume += volumeProfile[lowerRow];
+					}
+				}
 			}
-			}
+			vahPrice = lowest + (upperRow * rowSize);
+			valPrice = lowest + (lowerRow * rowSize);
+			
+			Print ("Range: " + priceRange);
+			Print("Row Size: " + rowSize);
+			Print("Highest: "+ highest);
+			Print("Lowest: "+ lowest);
+			Print("VAH Price: " + vahPrice);
+			Print("VAL Price: " + valPrice);
+			Print("Accumulated Volume: " + accumulatedVolume);
+			Print("Target Volume: " + targetVolume);
 		}
 		
+		protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
+		{	
+			double maxWidth = ProfileWidth;
+			float x = chartControl.GetXByBarIndex(ChartBars, profileBarIndex);
+			
+			
+			for(int i = 0; i < Rows; i++){
+				
+			double bottomPrice =  lowest + (i * rowSize);
+			double topPrice = bottomPrice + rowSize;
+				
+			float bottomY = chartScale.GetYByValue(bottomPrice);
+			float topY = chartScale.GetYByValue(topPrice);
 		
-
+			double width = (volumeProfile[i] / maxVolume) * maxWidth;
+			
+			SharpDX.Color4 rowColor;	
+  
+			
+			if( i == pocRow ){
+				rowColor = new SharpDX.Color4(0f, 0f, 0f, 0.6f);
+			}
+			else if(lowerRow == i || upperRow == i){
+				rowColor = new SharpDX.Color4(0f, 1f, 0f, 0.45f);
+			}
+			else if(i > lowerRow && i < upperRow){
+				rowColor = new SharpDX.Color4(0f, 0f, 0.4f, 0.25f);
+			}
+			else{
+				rowColor = new SharpDX.Color4(0f, 0f, 1f, 0.25f);
+			}
+			using (SharpDX.Direct2D1.SolidColorBrush brush = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget,rowColor))
+			    	{
+			        RenderTarget.FillRectangle(new SharpDX.RectangleF(x, topY, (float)width, bottomY - topY),brush);
+			    	}
+			}
+			
+			
+		}
 		#region Properties
 		[NinjaScriptProperty]
 		[Range(10, int.MaxValue)]
@@ -183,6 +249,11 @@ namespace NinjaTrader.NinjaScript.Indicators
 		public int ValueArea
 		{ get; set; }
 		#endregion
+		[NinjaScriptProperty]
+		[Range(50, 1000)]
+		[Display(Name="ProfileWidth", Order=4, GroupName="Parameters")]
+		public int ProfileWidth
+		{ get; set; }
 
 	}
 }
@@ -194,18 +265,18 @@ namespace NinjaTrader.NinjaScript.Indicators
 	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
 	{
 		private MyCustomIndicator[] cacheMyCustomIndicator;
-		public MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		public MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea, int profileWidth)
 		{
-			return MyCustomIndicator(Input, lookback, rows, valueArea);
+			return MyCustomIndicator(Input, lookback, rows, valueArea, profileWidth);
 		}
 
-		public MyCustomIndicator MyCustomIndicator(ISeries<double> input, int lookback, int rows, int valueArea)
+		public MyCustomIndicator MyCustomIndicator(ISeries<double> input, int lookback, int rows, int valueArea, int profileWidth)
 		{
 			if (cacheMyCustomIndicator != null)
 				for (int idx = 0; idx < cacheMyCustomIndicator.Length; idx++)
-					if (cacheMyCustomIndicator[idx] != null && cacheMyCustomIndicator[idx].Lookback == lookback && cacheMyCustomIndicator[idx].Rows == rows && cacheMyCustomIndicator[idx].ValueArea == valueArea && cacheMyCustomIndicator[idx].EqualsInput(input))
+					if (cacheMyCustomIndicator[idx] != null && cacheMyCustomIndicator[idx].Lookback == lookback && cacheMyCustomIndicator[idx].Rows == rows && cacheMyCustomIndicator[idx].ValueArea == valueArea && cacheMyCustomIndicator[idx].ProfileWidth == profileWidth && cacheMyCustomIndicator[idx].EqualsInput(input))
 						return cacheMyCustomIndicator[idx];
-			return CacheIndicator<MyCustomIndicator>(new MyCustomIndicator(){ Lookback = lookback, Rows = rows, ValueArea = valueArea }, input, ref cacheMyCustomIndicator);
+			return CacheIndicator<MyCustomIndicator>(new MyCustomIndicator(){ Lookback = lookback, Rows = rows, ValueArea = valueArea, ProfileWidth = profileWidth }, input, ref cacheMyCustomIndicator);
 		}
 	}
 }
@@ -214,14 +285,14 @@ namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
 {
 	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
 	{
-		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea, int profileWidth)
 		{
-			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea);
+			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea, profileWidth);
 		}
 
-		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea)
+		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea, int profileWidth)
 		{
-			return indicator.MyCustomIndicator(input, lookback, rows, valueArea);
+			return indicator.MyCustomIndicator(input, lookback, rows, valueArea, profileWidth);
 		}
 	}
 }
@@ -230,14 +301,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
 	{
-		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea)
+		public Indicators.MyCustomIndicator MyCustomIndicator(int lookback, int rows, int valueArea, int profileWidth)
 		{
-			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea);
+			return indicator.MyCustomIndicator(Input, lookback, rows, valueArea, profileWidth);
 		}
 
-		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea)
+		public Indicators.MyCustomIndicator MyCustomIndicator(ISeries<double> input , int lookback, int rows, int valueArea, int profileWidth)
 		{
-			return indicator.MyCustomIndicator(input, lookback, rows, valueArea);
+			return indicator.MyCustomIndicator(input, lookback, rows, valueArea, profileWidth);
 		}
 	}
 }
